@@ -1,0 +1,25 @@
+generator client {
+  provider               = "prisma-client"
+  output                 = "../src/generated/prisma"
+  moduleFormat           = "cjs"
+  importFileExtension    = ""
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model WeeklyReport {
+  id        String   @id @default(cuid())
+  repo      String
+  author    String
+  since     DateTime
+  until     DateTime
+  summary   String
+  result    Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([repo, author, since, until])
+  @@index([updatedAt])
+}

@@ -1,0 +1,35 @@
+:root { font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color:#19223a; background:#f5f7fa; font-synthesis:none; }
+* { box-sizing:border-box; }
+body { margin:0; }
+main { max-width:980px; margin:auto; padding:28px 22px; }
+header,.section-heading,.title-line { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.brand { font-weight:800; font-size:24px; letter-spacing:-.6px; }
+.brand span { color:#74809b; font-weight:500; font-size:12px; margin-left:8px; letter-spacing:0; }
+.tag,.pill { color:#3267bd; background:#eaf0ff; border:1px solid #dce7ff; border-radius:24px; padding:8px 12px; font-size:12px; }
+.hero { border:1px solid #e4eaf3; background:linear-gradient(135deg,#fff 15%,#f0f4ff); padding:54px 42px; border-radius:20px; margin:36px 0 32px; box-shadow:0 8px 28px #e5eafa99; }
+.eyebrow { color:#4d74ca; font-size:12px; font-weight:700; letter-spacing:3px; }
+h1 { max-width:700px; font-size:37px; line-height:1.28; letter-spacing:-1px; margin:17px 0 14px; }
+.hero p:not(.eyebrow) { color:#657089; line-height:1.75; }
+button { background:#2658d9; border:0; border-radius:9px; color:#fff; font-size:15px; font-weight:650; padding:13px 20px; cursor:pointer; margin-top:16px; }
+button:hover { background:#1e4ac4; }
+button:disabled { opacity:.6; cursor:wait; }
+.error { color:#b42318!important; }
+.report { margin-bottom:50px; }
+.section-heading h2 { margin:0; font-size:22px; }
+.section-heading span,footer { color:#75829b; font-size:13px; }
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin:21px 0; }
+.stats div { border:1px solid #e6ebf4; border-radius:12px; background:white; padding:18px 24px; }
+.stats strong { display:block; font-size:30px; }
+.stats small { color:#75829b; font-size:12px; }
+.summary,.achievement,.limitations { background:#fff; border:1px solid #e6ebf4; border-radius:12px; padding:22px 26px; margin:14px 0; line-height:1.75; }
+.achievement h3 { margin:0; font-size:18px; }
+.achievement p { color:#5d6b81; font-size:14px; margin:8px 0; }
+.achievement b { color:#283a59; }
+.achievement em { margin-left:8px; font-style:normal; color:#986329; font-size:12px; }
+.links { display:flex; gap:14px; flex-wrap:wrap; margin-top:16px; }
+a { text-decoration:none; color:#2658d9; font-size:13px; }
+.limitations { background:#fefbf7; }
+.limitations h3 { margin:0 0 6px; font-size:16px; }
+.limitations ul { margin:0; padding-left:20px; color:#7b6547; font-size:14px; }
+footer { text-align:center; padding:28px; }
+@media(max-width:600px) { .brand span,.tag {display:none;} .hero{padding:30px 23px;} h1{font-size:27px;} .stats{gap:8px;} .stats div{padding:14px 10px;} }

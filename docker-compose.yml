@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gitpilot
+      POSTGRES_PASSWORD: gitpilot_dev
+      POSTGRES_DB: gitpilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - gitpilot_pgdata:/var/lib/postgresql/data
+volumes:
+  gitpilot_pgdata:
