@@ -41,24 +41,101 @@ export async function readReportStream(response: Response, onEvent: (event: Repo
   }
 }
 
-const labels: Record<string, string> = {
-  summary: '摘要', title: '成果', module: '模块', technicalApproach: '技术方案',
-  contribution: '实际贡献', impact: '影响（待校验）', resumeSentence: '简历描述',
-};
+const itemFields = ['title', 'category', 'module', 'technicalApproach', 'contribution', 'impact', 'resumeSentence'] as const;
+export type DraftAchievement = Partial<Record<typeof itemFields[number], string>>;
+export type DraftReport = { summary: string; limitations: string[]; items: DraftAchievement[] };
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
-// Preview only human-readable string fields. Incomplete JSON is never treated as a saved report.
-export function reportPreview(json: string): { label: string; text: string }[] {
-  const fields: { label: string; text: string }[] = [];
-  const pattern = /"(summary|title|module|technicalApproach|contribution|impact|resumeSentence)"\s*:\s*"((?:[^"\\]|\\[\s\S])*)(?:"|$)/g;
-  for (const match of json.matchAll(pattern)) {
-    let raw = match[2];
-    // A network chunk can stop in the middle of a JSON escape sequence.
-    let text = '';
+// Parse the received prefix without inventing missing text or merging separate objects.
+// This is for display only; the server still validates the complete report before saving.
+function partialJson(source: string): JsonValue | undefined {
+  let position = 0;
+  const whitespace = () => { while (/\s/.test(source[position] ?? '') && position < source.length) position++; };
+  function string(): { value: string; complete: boolean } {
+    const start = ++position;
+    while (position < source.length) {
+      if (source[position] === '\\') { position += 2; continue; }
+      if (source[position] === '"') {
+        const raw = source.slice(start, position++);
+        return { value: JSON.parse(`"${raw}"`) as string, complete: true };
+      }
+      position++;
+    }
+    let raw = source.slice(start);
+    // Drop only the unfinished escape, preserving all preceding text.
     while (raw) {
-      try { text = JSON.parse(`"${raw}"`) as string; break; }
+      try { return { value: JSON.parse(`"${raw}"`) as string, complete: false }; }
       catch { raw = raw.slice(0, -1); }
     }
-    if (text) fields.push({ label: labels[match[1]], text });
+    return { value: '', complete: false };
   }
-  return fields;
+  function value(depth: number): JsonValue | undefined {
+    whitespace();
+    if (depth > 24 || position >= source.length) return undefined;
+    if (source[position] === '"') return string().value;
+    if (source[position] === '{') {
+      position++;
+      const object: Record<string, JsonValue> = Object.create(null);
+      while (position < source.length) {
+        whitespace();
+        if (source[position] === '}') { position++; break; }
+        if (source[position] !== '"') break;
+        const key = string();
+        whitespace();
+        if (!key.complete || source[position] !== ':') break;
+        position++;
+        const child = value(depth + 1);
+        if (child === undefined) break;
+        object[key.value] = child;
+        whitespace();
+        if (source[position] !== ',') {
+          if (source[position] === '}') position++;
+          break;
+        }
+        position++;
+      }
+      return object;
+    }
+    if (source[position] === '[') {
+      position++;
+      const array: JsonValue[] = [];
+      while (position < source.length) {
+        whitespace();
+        if (source[position] === ']') { position++; break; }
+        const child = value(depth + 1);
+        if (child === undefined) break;
+        array.push(child);
+        whitespace();
+        if (source[position] !== ',') {
+          if (source[position] === ']') position++;
+          break;
+        }
+        position++;
+      }
+      return array;
+    }
+    const token = /^(?:true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/.exec(source.slice(position));
+    if (!token) return undefined;
+    position += token[0].length;
+    return JSON.parse(token[0]) as JsonValue;
+  }
+  try { return value(0); } catch { return undefined; }
+}
+
+function isObject(value: JsonValue | undefined): value is { [key: string]: JsonValue } {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+export function reportPreview(json: string): DraftReport {
+  const value = partialJson(json);
+  if (!isObject(value)) return { summary: '', limitations: [], items: [] };
+  return {
+    summary: typeof value.summary === 'string' ? value.summary : '',
+    limitations: Array.isArray(value.limitations) ? value.limitations.filter((v): v is string => typeof v === 'string') : [],
+    items: Array.isArray(value.items) ? value.items.filter(isObject).map(item => {
+      const draft: DraftAchievement = {};
+      for (const key of itemFields) if (typeof item[key] === 'string') draft[key] = item[key];
+      return draft;
+    }) : [],
+  };
 }

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { readReportStream, reportPreview } from './report-stream';
+import type { DraftReport } from './report-stream';
 
 type Achievement = {
   title: string;
@@ -21,6 +22,23 @@ type Analysis = {
   truncated: boolean;
   result: { summary: string; limitations: string[]; items: Achievement[] };
 };
+
+function ReportContent({ report, verifiedItems }: { report: DraftReport; verifiedItems?: Achievement[] }) {
+  return <>
+    {report.summary && <article className="summary">{report.summary}</article>}
+    {report.items.map((item, index) => <article key={index} className="achievement">
+      <div className="title-line"><h3>{item.title || `成果 ${index + 1}`}</h3>{item.category && <span className="pill">{item.category}</span>}</div>
+      {item.module && <p><b>模块：</b>{item.module}</p>}
+      {item.technicalApproach && <p><b>技术方案：</b>{item.technicalApproach}</p>}
+      {item.contribution && <p><b>实际贡献：</b>{item.contribution}</p>}
+      {item.impact && <p><b>影响：</b>{item.impact} <em>{verifiedItems?.[index]?.impactVerified ? '有直接依据' : '效果未经验证'}</em></p>}
+      {item.resumeSentence && <p><b>简历描述：</b>{item.resumeSentence}</p>}
+      {verifiedItems?.[index] && <div className="links">{verifiedItems[index].evidenceUrls.map((url, i) => <a key={url} href={url} target="_blank" rel="noreferrer">Commit {verifiedItems[index].commitShas[i].slice(0, 7)} ↗</a>)}</div>}
+    </article>)}
+    {!!report.limitations.length && <article className="limitations"><h3>数据覆盖与验证限制</h3>
+      <ul>{report.limitations.map((v, i) => <li key={i}>{v}</li>)}</ul></article>}
+  </>;
+}
 
 export default function App() {
   const [data, setData] = useState<Analysis | null>(null);
@@ -92,29 +110,14 @@ export default function App() {
       {status && <p role="status" aria-live="polite" className="stream-status">{status}</p>}
       {error && <p role="alert" className="error">{error}</p>}
     </section>
-    {!data && preview.length > 0 && <section className="draft" aria-label="报告生成预览" aria-busy={loading}>
-      <div className="section-heading"><h2>{loading ? '报告正在生成' : '未完成的报告'}</h2><span>预览内容 · 尚未校验保存</span></div>
-      <article className="summary">{preview.map((field, index) => <p key={index}><b>{field.label}：</b>{field.text}</p>)}</article>
-    </section>}
-    {data && <section className="report">
-      <div className="section-heading"><h2>分析报告</h2><span>{data.repo} · {data.author}</span></div>
-      <div className="stats">
+    {(data || draft) && <section className={`report${data ? '' : ' draft'}`} aria-label="分析报告" aria-busy={loading}>
+      <div className="section-heading"><h2>{data ? '分析报告' : loading ? '报告正在生成' : '未完成的报告'}</h2><span>{data ? `${data.repo} · ${data.author}` : '草稿 · 尚未校验保存'}</span></div>
+      {data && <div className="stats">
         <div><strong>{data.commitCount}</strong><small>范围内提交</small></div>
         <div><strong>{data.inspectedCount}</strong><small>已检查 Diff</small></div>
         <div><strong>{data.result.items.length}</strong><small>识别工程成果</small></div>
-      </div>
-      <article className="summary">{data.result.summary}</article>
-      {data.result.items.map((item, index) => <article key={index} className="achievement">
-        <div className="title-line"><h3>{item.title}</h3><span className="pill">{item.category}</span></div>
-        <p><b>模块：</b>{item.module}</p>
-        <p><b>技术方案：</b>{item.technicalApproach}</p>
-        <p><b>实际贡献：</b>{item.contribution}</p>
-        <p><b>影响：</b>{item.impact} <em>{item.impactVerified ? '有直接依据' : '效果未经验证'}</em></p>
-        <p><b>简历描述：</b>{item.resumeSentence}</p>
-        <div className="links">{item.evidenceUrls.map((url, i) => <a key={url} href={url} target="_blank" rel="noreferrer">Commit {item.commitShas[i].slice(0, 7)} ↗</a>)}</div>
-      </article>)}
-      {!!data.result.limitations.length && <article className="limitations"><h3>数据覆盖与验证限制</h3>
-        <ul>{data.result.limitations.map((v, i) => <li key={i}>{v}</li>)}</ul></article>}
+      </div>}
+      <ReportContent report={data?.result ?? preview} verifiedItems={data?.result.items} />
     </section>}
     <footer>GitPilot MVP · 仅供本地学习。生产部署前必须添加用户认证、限流和仓库授权。</footer>
   </main>;

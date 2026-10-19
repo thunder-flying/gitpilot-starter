@@ -17,8 +17,8 @@ button:disabled { opacity:.6; cursor:wait; }
 .cancel { margin-left:12px; background:#e7ecf5; color:#283a59; }
 .cancel:hover { background:#d8e1f0; }
 .stream-status { font-size:14px; }
-.draft .summary { white-space:pre-wrap; overflow-wrap:anywhere; }
-.draft .summary p { margin:8px 0; }
+.report .summary,.report .achievement p,.report .limitations li { white-space:pre-wrap; overflow-wrap:anywhere; }
+.draft .achievement:last-of-type { border-color:#b6c9f3; }
 .report { margin-bottom:50px; }
 .section-heading h2 { margin:0; font-size:22px; }
 .section-heading span,footer { color:#75829b; font-size:13px; }

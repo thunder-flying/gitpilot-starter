@@ -62,7 +62,7 @@ DEEPSEEK_MODEL="deepseek-flash"
 `POST http://localhost:3000/reports/analyze/stream`：相同请求体，以 SSE 流式返回：
 
 - `progress`：读取提交、检查代码和保存进度。
-- `delta`：模型生成的 JSON 文本片段；前端转换为可读的报告预览。
+- `delta`：模型生成的 JSON 文本片段；前端逐步填入摘要、独立成果卡片及限制说明，字段尚未生成完也可阅读。
 - `result`：校验和保存完成后的完整报告。
 - `error`：可读的错误提示；流开始后的错误通过该事件返回，不能仅判断 HTTP 状态码。
 
