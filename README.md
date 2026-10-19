@@ -59,6 +59,15 @@ DEEPSEEK_MODEL="deepseek-flash"
 
 `GET http://localhost:3000/reports`：最近 20 份已保存报告的元信息。
 
+`POST http://localhost:3000/reports/analyze/stream`：相同请求体，以 SSE 流式返回：
+
+- `progress`：读取提交、检查代码和保存进度。
+- `delta`：模型生成的 JSON 文本片段；前端转换为可读的报告预览。
+- `result`：校验和保存完成后的完整报告。
+- `error`：可读的错误提示；流开始后的错误通过该事件返回，不能仅判断 HTTP 状态码。
+
+页面默认使用流式接口，支持停止分析。预览内容尚未校验；只有收到 `result` 才展示正式报告。连接关闭会取消模型请求；未完成或格式不合法的报告不保存。原有 `/reports/analyze` 保持完整 JSON 响应。后端每 15 秒发送一次心跳，反向代理应禁用响应缓冲。
+
 ## 重要限制
 
 1. 默认仅分析最新 40 条提交，每次 Agent 最多请求 12 个不同 Commit Diff，并限制轮数。报告会披露未覆盖内容。

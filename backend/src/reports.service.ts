@@ -5,11 +5,17 @@ import { GithubService } from './github.service';
 import { PrismaService } from './prisma.service';
 import { ReportSchema } from './report.schema';
 
+export type AnalysisEvent =
+  | { type: 'progress'; message: string }
+  | { type: 'delta'; text: string };
+
 @Injectable()
 export class ReportsService {
   constructor(private readonly github: GithubService, private readonly prisma: PrismaService) { }
 
-  async analyze(sinceInput: string, untilInput: string) {
+  async analyze(sinceInput: string, untilInput: string,
+    emit: (event: AnalysisEvent) => void = () => {}, signal?: AbortSignal) {
+    signal?.throwIfAborted();
     const since = new Date(sinceInput);
     const until = new Date(untilInput);
     if (!sinceInput || !untilInput || !Number.isFinite(since.getTime()) ||
@@ -30,7 +36,10 @@ export class ReportsService {
       useResponses: false,
     });
     const model = await provider.getModel(process.env.DEEPSEEK_MODEL || 'deepseek-flash');
+    emit({ type: 'progress', message: '正在读取 GitHub 提交…' });
     const { commits, truncated } = await this.github.listCommits(since.toISOString(), until.toISOString());
+    signal?.throwIfAborted();
+    emit({ type: 'progress', message: `找到 ${commits.length} 条提交，正在分析…` });
     const allowed = new Set(commits.map((c) => c.sha));
     const inspected = new Set<string>();
     let inspections = 0;
@@ -47,10 +56,13 @@ export class ReportsService {
       description: 'Inspect the code diff of a SHA listed by list_commits. Use before claiming a specific implementation.',
       parameters: z.object({ sha: z.string() }),
       execute: async ({ sha }) => {
+        signal?.throwIfAborted();
         if (!allowed.has(sha)) return 'ERROR: SHA is not in the allowed interval or author scope.';
         if (inspections >= 12 && !inspected.has(sha)) return 'ERROR: 12 diff inspections limit reached.';
         if (!inspected.has(sha)) inspections++;
+        emit({ type: 'progress', message: `正在检查提交 ${sha.slice(0, 7)} 的代码改动…` });
         const diff = await this.github.getCommitDiff(sha);
+        signal?.throwIfAborted();
         inspected.add(sha);
         return JSON.stringify(diff);
       },
@@ -83,7 +95,18 @@ export class ReportsService {
 
     const execution = await run(agent, `Analyze repo ${this.github.repoName()} by GitHub author ${this.github.authorName()} between ${since.toISOString()} and ${until.toISOString()}. ${commits.length} commits in scope. Truncated: ${truncated}.`, {
       maxTurns: 15,
+      stream: true,
+      signal,
     });
+    // Attach a rejection handler before consuming: model failures can reject both streams.
+    const completed = execution.completed;
+    void completed.catch(() => {});
+    for await (const text of execution.toTextStream({ compatibleWithNodeStreams: true })) {
+      signal?.throwIfAborted();
+      emit({ type: 'delta', text });
+    }
+    await completed;
+    signal?.throwIfAborted();
     const output = execution.finalOutput;
     if (!output) throw new Error('The agent did not return a report');
 
@@ -96,6 +119,8 @@ export class ReportsService {
     if (truncated) report.limitations.push('Only the most recent 40 commits were analyzed; earlier commits may be omitted.');
     if (inspected.size < commits.length) report.limitations.push(`Only ${inspected.size}/${commits.length} commits had their diffs inspected.`);
 
+    emit({ type: 'progress', message: '报告生成完成，正在校验并保存…' });
+    signal?.throwIfAborted();
     const row = await this.prisma.weeklyReport.upsert({
       where: {
         repo_author_since_until: {
